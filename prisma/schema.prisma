@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleType {
+  USER
+  ADMIN
+}
+
+type OtpType {
+  code      Int
+  expiresIn DateTime
+}
+
+model User {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  fullName    String
+  phoneNumber String   @unique
+  role        RoleType @default(USER)
+  otp         OtpType
+  createdAt   DateTime @default(now())
+}
