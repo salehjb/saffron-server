@@ -18,13 +18,14 @@ type OtpType {
 }
 
 model User {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  fullName    String
-  phoneNumber String   @unique
-  role        RoleType @default(USER)
-  otp         OtpType
-  createdAt   DateTime @default(now())
-  cart        Cart?
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  fullName     String
+  phoneNumber  String        @unique
+  role         RoleType      @default(USER)
+  otp          OtpType
+  cart         Cart?
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
 }
 
 model Cart {
@@ -50,14 +51,35 @@ model Category {
 }
 
 model Product {
-  id          String     @id @default(auto()) @map("_id") @db.ObjectId
-  name        String     @unique
-  description String     @default("")
-  price       Int
-  image       String
-  isAvailable Boolean    @default(true)
-  category    Category   @relation(fields: [categoryId], references: [id])
-  categoryId  String     @db.ObjectId
-  cartItems   CartItem[]
-  createdAt   DateTime   @default(now())
+  id               String               @id @default(auto()) @map("_id") @db.ObjectId
+  name             String               @unique
+  description      String               @default("")
+  price            Int
+  image            String
+  isActive         Boolean              @default(true)
+  category         Category             @relation(fields: [categoryId], references: [id])
+  categoryId       String               @db.ObjectId
+  cartItems        CartItem[]
+  transactionItems TransactionProduct[]
+  createdAt        DateTime             @default(now())
+}
+
+model Transaction {
+  id         String               @id @default(auto()) @map("_id") @db.ObjectId
+  user       User                 @relation(fields: [userId], references: [id])
+  userId     String               @db.ObjectId
+  products   TransactionProduct[]
+  totalPrice Int
+  createdAt  DateTime             @default(now())
+}
+
+model TransactionProduct {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  transactionId String      @db.ObjectId
+  product       Product     @relation(fields: [productId], references: [id])
+  productId     String      @db.ObjectId
+  quantity      Int
+
+  @@unique([transactionId, productId])
 }

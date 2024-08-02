@@ -22,19 +22,70 @@ class ProductAdminControllerClass {
     const search = req.query.search ? req.query.search : "";
 
     try {
+      const totalProducts = await db.product.count();
+
+      const totalSoldProducts = await db.transactionProduct.aggregate({
+        _sum: {
+          quantity: true,
+        },
+      });
+
+      const totalSalesData = await db.transactionProduct.findMany({
+        include: {
+          product: {
+            select: {
+              price: true,
+            },
+          },
+        },
+      });
+
+      const totalSalesAmount = totalSalesData.reduce((acc, item) => {
+        return acc + item.quantity * item.product.price;
+      }, 0);
+
       const products = await db.product.findMany({
         where: {
           name: { contains: search },
         },
         take: limit,
         skip,
+        include: {
+          category: true,
+          transactionItems: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      const productsWithSalesInfo = products.map((product) => {
+        const totalQuantitySold = product.transactionItems.reduce(
+          (acc, item) => acc + item.quantity,
+          0
+        );
+        const totalSalesAmount = product.transactionItems.reduce(
+          (acc, item) => acc + item.quantity * product.price,
+          0
+        );
+        
+        return {
+          ...product,
+          totalQuantitySold,
+          totalSalesAmount,
+        };
       });
 
       return res.status(StatusCodes.OK).json({
         data: {
-          products,
+          products: productsWithSalesInfo,
           skip,
           limit,
+          metadata: {
+            totalProducts,
+            totalSoldProducts: totalSoldProducts._sum.quantity || 0,
+            totalSalesAmount: totalSalesAmount || 0,
+          },
         },
         status: StatusCodes.OK,
       });

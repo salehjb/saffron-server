@@ -17,7 +17,12 @@ class AdminCategoryControllerClass {
     res: Response,
     next: NextFunction
   ) {
-    const limit = req.query.limit ? +req.query.limit : 10;
+    const limit =
+      req.query.limit === "unlimited"
+        ? undefined
+        : req.query.limit
+        ? +req.query.limit
+        : 10;
     const skip = req.query.skip ? +req.query.skip : 0;
     const search = req.query.search ? req.query.search : "";
 

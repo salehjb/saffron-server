@@ -4,7 +4,7 @@ import { uploadPermission } from "../../middlewares/uploadPermision";
 
 const router = Router();
 
-router.get("/get", ProductAdminController.get);
+router.get("/", ProductAdminController.get);
 router.post(
   "/create",
   uploadPermission({ field_name: "image", max_files: 1 }),
