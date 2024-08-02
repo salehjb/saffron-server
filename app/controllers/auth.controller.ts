@@ -84,11 +84,17 @@ class AuthControllerClass {
         expiresIn: new Date(Date.now() + 2 * 60 * 1000),
       };
 
-      await db.user.create({
+      const user = await db.user.create({
         data: {
           fullName,
           phoneNumber,
           otp,
+        },
+      });
+
+      await db.cart.create({
+        data: {
+          userId: user.id,
         },
       });
 
