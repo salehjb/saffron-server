@@ -18,14 +18,28 @@ type OtpType {
 }
 
 model User {
-  id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  fullName     String
-  phoneNumber  String        @unique
-  role         RoleType      @default(USER)
-  otp          OtpType
-  cart         Cart?
-  transactions Transaction[]
-  createdAt    DateTime      @default(now())
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  fullName    String
+  phoneNumber String    @unique
+  role        RoleType  @default(USER)
+  otp         OtpType
+  cart        Cart?
+  orders      Order[]
+  addresses   Address[]
+  createdAt   DateTime  @default(now())
+}
+
+model Address {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  user        User    @relation(fields: [userId], references: [id])
+  userId      String  @db.ObjectId
+  city        String
+  address     String
+  phoneNumber String
+  floor       Int
+  unit        Int
+  postalCode  Int
+  orders      Order[]
 }
 
 model Cart {
@@ -51,35 +65,47 @@ model Category {
 }
 
 model Product {
-  id               String               @id @default(auto()) @map("_id") @db.ObjectId
-  name             String               @unique
-  description      String               @default("")
-  price            Int
-  image            String
-  isActive         Boolean              @default(true)
-  category         Category             @relation(fields: [categoryId], references: [id])
-  categoryId       String               @db.ObjectId
-  cartItems        CartItem[]
-  transactionItems TransactionProduct[]
-  createdAt        DateTime             @default(now())
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  name        String      @unique
+  description String      @default("")
+  price       Int
+  image       String
+  isActive    Boolean     @default(true)
+  category    Category    @relation(fields: [categoryId], references: [id])
+  categoryId  String      @db.ObjectId
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
 }
 
-model Transaction {
-  id         String               @id @default(auto()) @map("_id") @db.ObjectId
-  user       User                 @relation(fields: [userId], references: [id])
-  userId     String               @db.ObjectId
-  products   TransactionProduct[]
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+model Order {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  user       User        @relation(fields: [userId], references: [id])
+  userId     String      @db.ObjectId
+  orderItems OrderItem[]
+  address    Address     @relation(fields: [addressId], references: [id])
+  addressId  String      @db.ObjectId
   totalPrice Int
-  createdAt  DateTime             @default(now())
+  status     OrderStatus
+  createdAt  DateTime    @default(now())
 }
 
-model TransactionProduct {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
-  transactionId String      @db.ObjectId
-  product       Product     @relation(fields: [productId], references: [id])
-  productId     String      @db.ObjectId
-  quantity      Int
+model OrderItem {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   String  @db.ObjectId
+  product   Product @relation(fields: [productId], references: [id])
+  productId String  @db.ObjectId
+  quantity  Int
+  price     Int
 
-  @@unique([transactionId, productId])
+  @@unique([orderId, productId])
 }

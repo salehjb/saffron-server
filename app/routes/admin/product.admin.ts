@@ -11,6 +11,15 @@ router.post(
   ProductAdminController.create
 );
 router.delete("/delete/:id", ProductAdminController.delete);
-router.put("/update/:id", ProductAdminController.update);
+router.put(
+  "/update/:id",
+  uploadPermission({
+    field_name: "image",
+    max_files: 1,
+    upload_required: false,
+  }),
+  ProductAdminController.update
+);
+router.patch("/change-is-active/:id", ProductAdminController.changeIsActive);
 
 export default router;

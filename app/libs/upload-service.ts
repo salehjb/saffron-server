@@ -72,6 +72,14 @@ export async function deleteFileFromCloud(filename: string, dir?: string) {
   }
 }
 
+function fileNamePured(filename: string) {
+  const trimmedFilename = filename.endsWith(".")
+    ? filename.slice(0, -1)
+    : filename;
+  const replacedString = trimmedFilename.replace(/[. ]+/g, "-");
+  return replacedString.replace(/-+/g, "-");
+}
+
 export async function uploadFiles(
   files: Express.Multer.File[] | undefined,
 
@@ -82,7 +90,6 @@ export async function uploadFiles(
     if (files && files.length > 0) {
       const uploadedFileUrls: string[] = [];
 
-      // حذف فایل‌های قبلی اگر URL هایشان داده شده است
       if (prevFileUrls && prevFileUrls.length > 0) {
         for (const prevFileUrl of prevFileUrls) {
           const prevFileName = fileNameFromUrl(prevFileUrl);
@@ -91,7 +98,9 @@ export async function uploadFiles(
       }
 
       for (const file of files) {
-        const imageName = `${Date.now().toString()}-${file.originalname}`;
+        const imageName = `${Date.now().toString()}-${fileNamePured(
+          file.originalname
+        )}`;
         const imageUrl = `https://${process.env.LIARA_BUCKET_NAME}.${
           process.env.LIARA_ENDPOINT
         }${fileDirectory ? `/${fileDirectory}` : ""}/${imageName}`;

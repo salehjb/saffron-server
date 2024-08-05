@@ -2,8 +2,13 @@ import { NextFunction, Request, Response } from "express";
 import { db } from "../../libs/db";
 import { StatusCodes } from "http-status-codes";
 import { validateSchema } from "../../libs/validate-schema";
-import { createProductValidator } from "../../validations/admin/product.validation";
-import { uploadFiles } from "../../libs/upload-service";
+import {
+  changeIsActiveValidator,
+  createProductValidator,
+  updateProductValidator,
+} from "../../validations/admin/product.validation";
+import { deleteFileFromCloud, uploadFiles } from "../../libs/upload-service";
+import { fileNameFromUrl } from "../../libs";
 
 type ProductQueryType = {
   limit: string;
@@ -24,13 +29,13 @@ class ProductAdminControllerClass {
     try {
       const totalProducts = await db.product.count();
 
-      const totalSoldProducts = await db.transactionProduct.aggregate({
+      const totalSoldProducts = await db.orderItem.aggregate({
         _sum: {
           quantity: true,
         },
       });
 
-      const totalSalesData = await db.transactionProduct.findMany({
+      const totalSalesData = await db.orderItem.findMany({
         include: {
           product: {
             select: {
@@ -46,13 +51,20 @@ class ProductAdminControllerClass {
 
       const products = await db.product.findMany({
         where: {
-          name: { contains: search },
+          OR: [
+            { name: { contains: search } },
+            {
+              category: {
+                name: { contains: search },
+              },
+            },
+          ],
         },
         take: limit,
         skip,
         include: {
           category: true,
-          transactionItems: true,
+          orderItems: true,
         },
         orderBy: {
           createdAt: "desc",
@@ -60,15 +72,15 @@ class ProductAdminControllerClass {
       });
 
       const productsWithSalesInfo = products.map((product) => {
-        const totalQuantitySold = product.transactionItems.reduce(
+        const totalQuantitySold = product.orderItems.reduce(
           (acc, item) => acc + item.quantity,
           0
         );
-        const totalSalesAmount = product.transactionItems.reduce(
+        const totalSalesAmount = product.orderItems.reduce(
           (acc, item) => acc + item.quantity * product.price,
           0
         );
-        
+
         return {
           ...product,
           totalQuantitySold,
@@ -160,14 +172,185 @@ class ProductAdminControllerClass {
   }
 
   async delete(req: Request, res: Response, next: NextFunction) {
+    const productId = req.params.id;
+
     try {
+      const product = await db.product.findUnique({
+        where: {
+          id: productId,
+        },
+        include: {
+          orderItems: true,
+        },
+      });
+
+      if (!product) {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          data: {
+            message: "محصولی با این شناسه یافت نشد",
+          },
+          status: StatusCodes.NOT_FOUND,
+        });
+      }
+
+      const totalQuantitySold = product.orderItems.reduce(
+        (acc, item) => acc + item.quantity,
+        0
+      );
+
+      if (totalQuantitySold > 0) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          data: {
+            message: "محصول دارای خریدار قابل حدف نمیباشد",
+          },
+          status: StatusCodes.BAD_REQUEST,
+        });
+      }
+
+      await deleteFileFromCloud(
+        fileNameFromUrl(product.image),
+        "products-image"
+      );
+
+      await db.product.delete({
+        where: {
+          id: product.id,
+        },
+      });
+
+      return res.status(StatusCodes.OK).json({
+        data: {
+          message: "محصول با موفقیت حذف شد",
+        },
+        status: StatusCodes.OK,
+      });
     } catch (error) {
       next(error);
     }
   }
 
   async update(req: Request, res: Response, next: NextFunction) {
+    const productId = req.params.id;
+
     try {
+      const { name, description, price, categoryId } = await validateSchema(
+        updateProductValidator,
+        req,
+        res
+      );
+
+      const product = await db.product.findUnique({
+        where: {
+          id: productId,
+        },
+      });
+
+      if (!product) {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          data: {
+            message: "محصولی با این شناسه یافت نشد",
+          },
+          status: StatusCodes.NOT_FOUND,
+        });
+      }
+
+      if (name) {
+        const existProductWithName = await db.product.findUnique({
+          where: {
+            name,
+          },
+        });
+
+        if (
+          existProductWithName &&
+          existProductWithName.name !== product.name
+        ) {
+          return res.status(StatusCodes.CONFLICT).json({
+            data: {
+              message: "محصول با این نام از قبل موجود میباشد",
+              error: "PRODUCT_NAME_EXIST",
+            },
+            status: StatusCodes.CONFLICT,
+          });
+        }
+      }
+
+      // update product image
+      const files = req.files as Express.Multer.File[];
+      let productImageUrl;
+      if (files && files.length > 0) {
+        const uploadedFileUrls = await uploadFiles(files, "products-image", [
+          product.image,
+        ]);
+        if (uploadedFileUrls) {
+          productImageUrl = uploadedFileUrls[0];
+        }
+      }
+
+      await db.product.update({
+        where: {
+          id: product.id,
+        },
+        data: {
+          name,
+          description,
+          price,
+          image: productImageUrl,
+          categoryId,
+        },
+      });
+
+      return res.status(StatusCodes.OK).json({
+        data: {
+          message: "بروزرسانی محصول با موفقیت انجام شد",
+        },
+        status: StatusCodes.OK,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changeIsActive(req: Request, res: Response, next: NextFunction) {
+    const productId = req.params.id;
+
+    try {
+      const { isActive } = await validateSchema(
+        changeIsActiveValidator,
+        req,
+        res
+      );
+
+      const product = await db.product.findUnique({
+        where: {
+          id: productId,
+        },
+      });
+
+      if (!product) {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          data: {
+            message: "محصول با این شناسه یافت نشد",
+          },
+          status: StatusCodes.NOT_FOUND,
+        });
+      }
+
+      await db.product.update({
+        where: {
+          id: product.id,
+        },
+        data: {
+          isActive,
+        },
+      });
+
+      return res.status(StatusCodes.OK).json({
+        data: {
+          message: "تغییر وضعیت فعالیت محصول موفقیت آمیز بود",
+        },
+        status: StatusCodes.OK,
+      });
     } catch (error) {
       next(error);
     }

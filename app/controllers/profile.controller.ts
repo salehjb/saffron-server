@@ -1,10 +1,17 @@
 import { NextFunction, Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
+import { db } from "../libs/db";
 
 class ProfileControllerClass {
-  getProfile(req: Request, res: Response, next: NextFunction) {
+  async getProfile(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = req.user;
+      const userId = req?.user?.id;
+
+      const user = await db.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
 
       return res.status(StatusCodes.OK).json({
         data: {

@@ -40,9 +40,11 @@ export const uploadPermission = (params: UploadPermissionParamsType) => {
           if (err.code === "LIMIT_FILE_SIZE") {
             return res.status(StatusCodes.BAD_REQUEST).json({
               data: {
-                message: `اندازه هر فایل نمیتواند بیش از ${
-                  max_file_size / 1024 / 1024
-                } باشد`,
+                message: `اندازه هر فایل نمیتواند بیش از ${(
+                  max_file_size /
+                  1024 /
+                  1024
+                ).toFixed(0)} مگابایت باشد`,
                 error: "LIMIT_FILE_SIZE",
               },
               status: StatusCodes.BAD_REQUEST,
