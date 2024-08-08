@@ -29,19 +29,42 @@ model User {
   createdAt   DateTime  @default(now())
 }
 
-model Address {
-  id          String  @id @default(auto()) @map("_id") @db.ObjectId
-  user        User    @relation(fields: [userId], references: [id])
-  userId      String  @db.ObjectId
-  province    String
-  city        String
-  address     String
+type ReceiverInformationType {
+  fullName    String
   phoneNumber String
-  houseNumber Int
-  floor       Int
-  unit        Int
-  postalCode  Int
-  orders      Order[]
+}
+
+type ProvinceType {
+  id        Int
+  title     String
+  slug      String
+  latitude  Float
+  longitude Float
+}
+
+type CityType {
+  id          Int
+  title       String
+  slug        String
+  province_id Int
+  latitude    Float
+  longitude   Float
+}
+
+model Address {
+  id                  String                  @id @default(auto()) @map("_id") @db.ObjectId
+  user                User                    @relation(fields: [userId], references: [id])
+  userId              String                  @db.ObjectId
+  isReceiverMe        Boolean                 @default(false)
+  province            ProvinceType
+  city                CityType
+  address             String
+  receiverInformation ReceiverInformationType
+  houseNumber         Int
+  floor               Int
+  unit                Int
+  postalCode          Int
+  orders              Order[]
 }
 
 model Cart {
